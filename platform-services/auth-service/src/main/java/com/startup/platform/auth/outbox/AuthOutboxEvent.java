@@ -9,6 +9,9 @@ import jakarta.persistence.Table;
 
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 @Entity
 @Table(name = "auth_outbox_events")
 public class AuthOutboxEvent {
@@ -20,6 +23,7 @@ public class AuthOutboxEvent {
     @Column(name = "aggregate_type", nullable = false, length = 128)
     private String aggregateType;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
     private String payload;
 
@@ -39,8 +43,7 @@ public class AuthOutboxEvent {
             String aggregateType,
             String payload,
             Status status,
-            Integer retryCount
-    ) {
+            Integer retryCount) {
         this.eventId = eventId;
         this.aggregateType = aggregateType;
         this.payload = payload;

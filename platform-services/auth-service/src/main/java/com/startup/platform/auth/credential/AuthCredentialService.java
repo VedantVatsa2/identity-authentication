@@ -36,4 +36,8 @@ public class AuthCredentialService {
 
         return authCredentialRepository.save(credential);
     }
+
+    public boolean matchesPassword(String rawPassword, String passwordHash) {
+        return passwordHasher.matches(rawPassword, passwordHash);
+    }
 }

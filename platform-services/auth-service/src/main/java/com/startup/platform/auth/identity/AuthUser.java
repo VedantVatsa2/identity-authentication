@@ -44,8 +44,7 @@ public class AuthUser {
                 UUID.randomUUID(),
                 email,
                 Status.PENDING_VERIFICATION,
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
     }
 
     public UUID getUserId() {
@@ -68,5 +67,9 @@ public class AuthUser {
         PENDING_VERIFICATION,
         ACTIVE,
         LOCKED
+    }
+
+    public void activate() {
+        this.status = Status.ACTIVE;
     }
 }

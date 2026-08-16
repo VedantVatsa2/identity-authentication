@@ -7,7 +7,6 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -15,3 +14,8 @@ spring:
 
   jackson:
     time-zone: Asia/Kolkata
+
+auth:
+  jwt:
+    private-key: ${AUTH_JWT_PRIVATE_KEY}
+  client-id: ${AUTH_CLIENT_ID}

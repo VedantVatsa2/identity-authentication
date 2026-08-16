@@ -1,5 +1,6 @@
 package com.startup.platform.auth.api;
 
+import com.startup.platform.auth.identity.AuthenticationFailedException;
 import com.startup.platform.auth.identity.EmailAlreadyRegisteredException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -50,6 +51,16 @@ public class ApiExceptionHandler {
                 "Email Already Registered",
                 "The email address is already registered.",
                 "EMAIL_ALREADY_REGISTERED");
+    }
+
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ProblemDetail handleAuthenticationFailed() {
+
+        return problem(
+                HttpStatus.UNAUTHORIZED,
+                "Authentication Failed",
+                "Invalid email or password.",
+                "AUTHENTICATION_FAILED");
     }
 
     private ProblemDetail problem(

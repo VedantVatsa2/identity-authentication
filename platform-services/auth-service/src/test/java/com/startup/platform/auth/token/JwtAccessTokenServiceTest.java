@@ -28,12 +28,14 @@ class JwtAccessTokenServiceTest {
 
         UUID userId = UUID.randomUUID();
 
+        UUID sessionId = UUID.randomUUID();
+
         String token = service.issue(
                 userId,
+                sessionId,
                 "https://auth.startup.local",
                 "startup-api",
                 keyPair.getPrivate());
-
         String[] parts = token.split("\\.");
 
         assertEquals(3, parts.length);
@@ -68,6 +70,18 @@ class JwtAccessTokenServiceTest {
                 claim(claims, "exp"));
 
         assertNotNull(claim(claims, "jti"));
+
+        assertEquals(
+                sessionId.toString(),
+                claim(claims, "session_id"));
+
+        assertEquals(
+                "[]",
+                claim(claims, "roles"));
+
+        assertEquals(
+                "[]",
+                claim(claims, "scopes"));
     }
 
     @Test
@@ -75,6 +89,7 @@ class JwtAccessTokenServiceTest {
         KeyPair keyPair = generateKeyPair();
 
         String token = service.issue(
+                UUID.randomUUID(),
                 UUID.randomUUID(),
                 "https://auth.startup.local",
                 "startup-api",
@@ -102,11 +117,13 @@ class JwtAccessTokenServiceTest {
 
         String first = service.issue(
                 UUID.randomUUID(),
+                UUID.randomUUID(),
                 "https://auth.startup.local",
                 "startup-api",
                 keyPair.getPrivate());
 
         String second = service.issue(
+                UUID.randomUUID(),
                 UUID.randomUUID(),
                 "https://auth.startup.local",
                 "startup-api",

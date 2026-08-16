@@ -26,6 +26,7 @@ public class JwtAccessTokenService {
 
     public String issue(
             UUID userId,
+            UUID sessionId,
             String issuer,
             String audience,
             PrivateKey privateKey) {
@@ -39,6 +40,9 @@ public class JwtAccessTokenService {
         String payload = encodeJson(
                 "{"
                         + "\"sub\":\"" + escape(userId.toString()) + "\","
+                        + "\"session_id\":\"" + escape(sessionId.toString()) + "\","
+                        + "\"roles\":[],"
+                        + "\"scopes\":[],"
                         + "\"iss\":\"" + escape(issuer) + "\","
                         + "\"aud\":\"" + escape(audience) + "\","
                         + "\"iat\":" + issuedAt.getEpochSecond() + ","

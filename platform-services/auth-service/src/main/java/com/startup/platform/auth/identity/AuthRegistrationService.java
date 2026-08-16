@@ -4,6 +4,7 @@ import com.startup.platform.auth.credential.AuthCredentialService;
 import com.startup.platform.auth.credential.PasswordValidator;
 import com.startup.platform.auth.outbox.AuthOutboxEvent;
 import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,9 +36,17 @@ public class AuthRegistrationService {
 
         passwordValidator.validate(rawPassword);
 
+        if (authUserRepository.findByEmail(normalizedEmail).isPresent()) {
+            throw new EmailAlreadyRegisteredException();
+        }
+
         AuthUser user = AuthUser.create(normalizedEmail);
 
-        authUserRepository.save(user);
+        try {
+            authUserRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw new EmailAlreadyRegisteredException();
+        }
 
         authCredentialService.createCredential(
                 user.getUserId(),

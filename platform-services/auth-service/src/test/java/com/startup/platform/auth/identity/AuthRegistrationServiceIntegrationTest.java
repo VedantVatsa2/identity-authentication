@@ -123,4 +123,41 @@ class AuthRegistrationServiceIntegrationTest {
                 assertEquals(0, authCredentialRepository.count());
                 assertEquals(0, authOutboxEventRepository.count());
         }
+
+        @Test
+        void shouldRejectDuplicateEmail() {
+                String email = "duplicate@example.com";
+                String rawPassword = "CorrectHorseBatteryStaple!123";
+
+                registrationService.register(email, rawPassword);
+
+                assertThrows(
+                                EmailAlreadyRegisteredException.class,
+                                () -> registrationService.register(
+                                                email,
+                                                rawPassword));
+
+                assertEquals(1, authUserRepository.count());
+                assertEquals(1, authCredentialRepository.count());
+                assertEquals(1, authOutboxEventRepository.count());
+        }
+
+        @Test
+        void shouldRejectDuplicateEmailAfterNormalization() {
+                String rawPassword = "CorrectHorseBatteryStaple!123";
+
+                registrationService.register(
+                                "Duplicate@Example.COM",
+                                rawPassword);
+
+                assertThrows(
+                                EmailAlreadyRegisteredException.class,
+                                () -> registrationService.register(
+                                                "  duplicate@example.com  ",
+                                                rawPassword));
+
+                assertEquals(1, authUserRepository.count());
+                assertEquals(1, authCredentialRepository.count());
+                assertEquals(1, authOutboxEventRepository.count());
+        }
 }

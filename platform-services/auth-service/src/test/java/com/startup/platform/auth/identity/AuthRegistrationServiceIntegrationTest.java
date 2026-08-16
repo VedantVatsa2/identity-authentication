@@ -8,9 +8,13 @@ import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 @SpringBootTest
 @Transactional
@@ -25,7 +29,7 @@ class AuthRegistrationServiceIntegrationTest {
         @Autowired
         private AuthCredentialRepository authCredentialRepository;
 
-        @Autowired
+        @MockitoSpyBean
         private AuthOutboxEventRepository authOutboxEventRepository;
 
         @Autowired
@@ -159,5 +163,28 @@ class AuthRegistrationServiceIntegrationTest {
                 assertEquals(1, authUserRepository.count());
                 assertEquals(1, authCredentialRepository.count());
                 assertEquals(1, authOutboxEventRepository.count());
+        }
+
+        @Test
+        void shouldRollbackUserCredentialAndOutboxWhenRegistrationFailsAfterPersistence() {
+                TestTransaction.flagForCommit();
+                TestTransaction.end();
+
+                String email = "rollback-test@example.com";
+                String rawPassword = "CorrectHorseBatteryStaple!123";
+
+                doThrow(new RuntimeException("Simulated outbox persistence failure"))
+                                .when(authOutboxEventRepository)
+                                .save(any(AuthOutboxEvent.class));
+
+                assertThrows(
+                                RuntimeException.class,
+                                () -> registrationService.register(email, rawPassword));
+
+                TestTransaction.start();
+
+                assertEquals(0, authUserRepository.count());
+                assertEquals(0, authCredentialRepository.count());
+                assertEquals(0, authOutboxEventRepository.count());
         }
 }

@@ -1,8 +1,8 @@
 package com.startup.platform.auth.identity;
 
+import com.startup.platform.auth.credential.Argon2PasswordHasher;
 import com.startup.platform.auth.credential.AuthCredential;
 import com.startup.platform.auth.credential.AuthCredentialRepository;
-import com.startup.platform.auth.credential.Argon2PasswordHasher;
 import com.startup.platform.auth.outbox.AuthOutboxEvent;
 import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
 import org.junit.jupiter.api.Test;
@@ -16,57 +16,111 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 class AuthRegistrationServiceIntegrationTest {
 
-    @Autowired
-    private AuthRegistrationService registrationService;
+        @Autowired
+        private AuthRegistrationService registrationService;
 
-    @Autowired
-    private AuthUserRepository authUserRepository;
+        @Autowired
+        private AuthUserRepository authUserRepository;
 
-    @Autowired
-    private AuthCredentialRepository authCredentialRepository;
+        @Autowired
+        private AuthCredentialRepository authCredentialRepository;
 
-    @Autowired
-    private AuthOutboxEventRepository authOutboxEventRepository;
+        @Autowired
+        private AuthOutboxEventRepository authOutboxEventRepository;
 
-    @Autowired
-    private Argon2PasswordHasher passwordHasher;
+        @Autowired
+        private Argon2PasswordHasher passwordHasher;
 
-    @Test
-    void shouldRegisterUserWithCredentialAndOutboxEvent() {
-        String email = "registration-test@example.com";
-        String rawPassword = "CorrectHorseBatteryStaple!123";
+        @Test
+        void shouldRegisterUserWithCredentialAndOutboxEvent() {
+                String email = "registration-test@example.com";
+                String rawPassword = "CorrectHorseBatteryStaple!123";
 
-        AuthUser user = registrationService.register(email, rawPassword);
+                AuthUser user = registrationService.register(email, rawPassword);
 
-        assertNotNull(user.getUserId());
-        assertEquals(email, user.getEmail());
-        assertEquals(AuthUser.Status.PENDING_VERIFICATION, user.getStatus());
+                assertNotNull(user.getUserId());
+                assertEquals(email, user.getEmail());
+                assertEquals(AuthUser.Status.PENDING_VERIFICATION, user.getStatus());
 
-        AuthUser persistedUser = authUserRepository
-                .findById(user.getUserId())
-                .orElseThrow();
+                AuthUser persistedUser = authUserRepository
+                                .findById(user.getUserId())
+                                .orElseThrow();
 
-        assertEquals(email, persistedUser.getEmail());
+                assertEquals(email, persistedUser.getEmail());
 
-        AuthCredential credential = authCredentialRepository
-                .findById(user.getUserId())
-                .orElseThrow();
+                AuthCredential credential = authCredentialRepository
+                                .findById(user.getUserId())
+                                .orElseThrow();
 
-        assertNotNull(credential.getPasswordHash());
-        assertTrue(credential.getPasswordHash().startsWith("$argon2id$"));
-        assertEquals("ARGON2ID", credential.getAlgorithm());
-        assertTrue(
-                passwordHasher.matches(rawPassword, credential.getPasswordHash()));
+                assertNotNull(credential.getPasswordHash());
+                assertTrue(credential.getPasswordHash().startsWith("$argon2id$"));
+                assertEquals("ARGON2ID", credential.getAlgorithm());
+                assertTrue(
+                                passwordHasher.matches(rawPassword, credential.getPasswordHash()));
 
-        AuthOutboxEvent event = authOutboxEventRepository.findAll()
-                .stream()
-                .filter(candidate -> candidate.getStatus() == AuthOutboxEvent.Status.PENDING)
-                .filter(candidate -> candidate.getPayload().contains(user.getUserId().toString()))
-                .findFirst()
-                .orElseThrow();
+                AuthOutboxEvent event = authOutboxEventRepository.findAll()
+                                .stream()
+                                .filter(candidate -> candidate.getStatus() == AuthOutboxEvent.Status.PENDING)
+                                .filter(candidate -> candidate.getPayload().contains(user.getUserId().toString()))
+                                .findFirst()
+                                .orElseThrow();
 
-        assertEquals("AUTH_USER", event.getAggregateType());
-        assertTrue(event.getPayload().contains("USER_REGISTERED"));
-        assertTrue(event.getPayload().contains(user.getUserId().toString()));
-    }
+                assertEquals("AUTH_USER", event.getAggregateType());
+                assertTrue(event.getPayload().contains("USER_REGISTERED"));
+                assertTrue(event.getPayload().contains(user.getUserId().toString()));
+        }
+
+        @Test
+        void shouldNormalizeEmailDuringRegistration() {
+                String rawEmail = "  Registration-Test@Example.COM  ";
+                String rawPassword = "CorrectHorseBatteryStaple!123";
+
+                AuthUser user = registrationService.register(
+                                rawEmail,
+                                rawPassword);
+
+                assertEquals(
+                                "registration-test@example.com",
+                                user.getEmail());
+
+                AuthUser persistedUser = authUserRepository
+                                .findById(user.getUserId())
+                                .orElseThrow();
+
+                assertEquals(
+                                "registration-test@example.com",
+                                persistedUser.getEmail());
+        }
+
+        @Test
+        void shouldRejectInvalidEmailBeforeCreatingUser() {
+                String invalidEmail = "invalid-email";
+                String rawPassword = "CorrectHorseBatteryStaple!123";
+
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> registrationService.register(
+                                                invalidEmail,
+                                                rawPassword));
+
+                assertEquals(0, authUserRepository.count());
+                assertEquals(0, authCredentialRepository.count());
+                assertEquals(0, authOutboxEventRepository.count());
+        }
+
+        @Test
+        void shouldRejectInvalidPasswordBeforeCreatingUser() {
+                String email = "invalid-password@example.com";
+                String invalidPassword = "short";
+
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> registrationService.register(
+                                                email,
+                                                invalidPassword));
+
+                assertEquals(0, authUserRepository.count());
+                assertEquals(0, authCredentialRepository.count());
+                assertEquals(0, authOutboxEventRepository.count());
+        }
 }

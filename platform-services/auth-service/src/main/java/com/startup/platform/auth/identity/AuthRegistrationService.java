@@ -1,6 +1,7 @@
 package com.startup.platform.auth.identity;
 
 import com.startup.platform.auth.credential.AuthCredentialService;
+import com.startup.platform.auth.credential.PasswordValidator;
 import com.startup.platform.auth.outbox.AuthOutboxEvent;
 import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
 import org.springframework.stereotype.Service;
@@ -14,19 +15,27 @@ public class AuthRegistrationService {
     private final AuthUserRepository authUserRepository;
     private final AuthCredentialService authCredentialService;
     private final AuthOutboxEventRepository authOutboxEventRepository;
+    private final PasswordValidator passwordValidator;
 
     public AuthRegistrationService(
             AuthUserRepository authUserRepository,
             AuthCredentialService authCredentialService,
-            AuthOutboxEventRepository authOutboxEventRepository) {
+            AuthOutboxEventRepository authOutboxEventRepository,
+            PasswordValidator passwordValidator) {
         this.authUserRepository = authUserRepository;
         this.authCredentialService = authCredentialService;
         this.authOutboxEventRepository = authOutboxEventRepository;
+        this.passwordValidator = passwordValidator;
     }
 
     @Transactional
     public AuthUser register(String email, String rawPassword) {
-        AuthUser user = AuthUser.create(email);
+
+        String normalizedEmail = EmailNormalizer.normalize(email);
+
+        passwordValidator.validate(rawPassword);
+
+        AuthUser user = AuthUser.create(normalizedEmail);
 
         authUserRepository.save(user);
 

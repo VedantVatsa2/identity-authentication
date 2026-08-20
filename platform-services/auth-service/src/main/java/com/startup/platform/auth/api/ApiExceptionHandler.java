@@ -7,6 +7,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.startup.platform.auth.session.RefreshTokenException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -14,74 +15,84 @@ import java.time.ZoneOffset;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidation(
-            MethodArgumentNotValidException exception) {
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ProblemDetail handleValidation(
+                        MethodArgumentNotValidException exception) {
 
-        String detail = exception.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .findFirst()
-                .map(error -> error.getDefaultMessage())
-                .orElse("Request validation failed");
+                String detail = exception.getBindingResult()
+                                .getFieldErrors()
+                                .stream()
+                                .findFirst()
+                                .map(error -> error.getDefaultMessage())
+                                .orElse("Request validation failed");
 
-        return problem(
-                HttpStatus.BAD_REQUEST,
-                "Invalid Parameter",
-                detail,
-                "INVALID_INPUT");
-    }
+                return problem(
+                                HttpStatus.BAD_REQUEST,
+                                "Invalid Parameter",
+                                detail,
+                                "INVALID_INPUT");
+        }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleInvalidInput(
-            IllegalArgumentException exception) {
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ProblemDetail handleInvalidInput(
+                        IllegalArgumentException exception) {
 
-        return problem(
-                HttpStatus.BAD_REQUEST,
-                "Invalid Parameter",
-                exception.getMessage(),
-                "INVALID_INPUT");
-    }
+                return problem(
+                                HttpStatus.BAD_REQUEST,
+                                "Invalid Parameter",
+                                exception.getMessage(),
+                                "INVALID_INPUT");
+        }
 
-    @ExceptionHandler(EmailAlreadyRegisteredException.class)
-    public ProblemDetail handleDuplicateEmail() {
+        @ExceptionHandler(EmailAlreadyRegisteredException.class)
+        public ProblemDetail handleDuplicateEmail() {
 
-        return problem(
-                HttpStatus.CONFLICT,
-                "Email Already Registered",
-                "The email address is already registered.",
-                "EMAIL_ALREADY_REGISTERED");
-    }
+                return problem(
+                                HttpStatus.CONFLICT,
+                                "Email Already Registered",
+                                "The email address is already registered.",
+                                "EMAIL_ALREADY_REGISTERED");
+        }
 
-    @ExceptionHandler(AuthenticationFailedException.class)
-    public ProblemDetail handleAuthenticationFailed() {
+        @ExceptionHandler(AuthenticationFailedException.class)
+        public ProblemDetail handleAuthenticationFailed() {
 
-        return problem(
-                HttpStatus.UNAUTHORIZED,
-                "Authentication Failed",
-                "Invalid email or password.",
-                "AUTHENTICATION_FAILED");
-    }
+                return problem(
+                                HttpStatus.UNAUTHORIZED,
+                                "Authentication Failed",
+                                "Invalid email or password.",
+                                "AUTHENTICATION_FAILED");
+        }
 
-    private ProblemDetail problem(
-            HttpStatus status,
-            String title,
-            String detail,
-            String code) {
+        @ExceptionHandler(RefreshTokenException.class)
+        public ProblemDetail handleRefreshTokenFailed() {
 
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                status,
-                detail);
+                return problem(
+                                HttpStatus.UNAUTHORIZED,
+                                "Refresh Token Invalid",
+                                "Invalid refresh token.",
+                                "INVALID_REFRESH_TOKEN");
+        }
 
-        problem.setTitle(title);
-        problem.setType(java.net.URI.create(
-                "urn:startup:auth:error:" +
-                        code.toLowerCase().replace('_', '-')));
-        problem.setProperty("code", code);
-        problem.setProperty(
-                "timestamp",
-                OffsetDateTime.now(ZoneOffset.UTC));
+        private ProblemDetail problem(
+                        HttpStatus status,
+                        String title,
+                        String detail,
+                        String code) {
 
-        return problem;
-    }
+                ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                                status,
+                                detail);
+
+                problem.setTitle(title);
+                problem.setType(java.net.URI.create(
+                                "urn:startup:auth:error:" +
+                                                code.toLowerCase().replace('_', '-')));
+                problem.setProperty("code", code);
+                problem.setProperty(
+                                "timestamp",
+                                OffsetDateTime.now(ZoneOffset.UTC));
+
+                return problem;
+        }
 }

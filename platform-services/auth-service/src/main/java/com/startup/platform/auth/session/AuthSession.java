@@ -24,12 +24,7 @@ public class AuthSession {
     private UUID userId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "user_id",
-            nullable = false,
-            insertable = false,
-            updatable = false
-    )
+    @JoinColumn(name = "user_id", nullable = false, insertable = false, updatable = false)
     private AuthUser user;
 
     @Column(name = "client_id", nullable = false)
@@ -54,8 +49,7 @@ public class AuthSession {
             UUID clientId,
             String refreshTokenHash,
             LocalDateTime expiresAt,
-            LocalDateTime revokedAt
-    ) {
+            LocalDateTime revokedAt) {
         this.sessionId = sessionId;
         this.userId = userId;
         this.clientId = clientId;
@@ -90,5 +84,11 @@ public class AuthSession {
 
     public LocalDateTime getRevokedAt() {
         return revokedAt;
+    }
+
+    public void revoke(LocalDateTime revokedAt) {
+        if (this.revokedAt == null) {
+            this.revokedAt = revokedAt;
+        }
     }
 }

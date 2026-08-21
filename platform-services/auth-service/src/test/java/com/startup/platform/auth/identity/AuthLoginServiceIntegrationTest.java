@@ -1,12 +1,14 @@
 package com.startup.platform.auth.identity;
 
 import com.startup.platform.auth.credential.AuthCredentialRepository;
+import com.startup.platform.auth.credential.AuthCredentialService;
+import com.startup.platform.auth.session.AuthSessionRepository;
+import com.startup.platform.auth.verification.AuthVerificationChallengeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-import com.startup.platform.auth.credential.AuthCredentialService;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,11 +26,20 @@ class AuthLoginServiceIntegrationTest {
     private AuthCredentialRepository authCredentialRepository;
 
     @Autowired
+    private AuthSessionRepository authSessionRepository;
+
+    @Autowired
+    private AuthVerificationChallengeRepository authVerificationChallengeRepository;
+
+    @Autowired
     private AuthCredentialService authCredentialService;
 
     @BeforeEach
     void setUp() {
+        // Delete child records before deleting users because of FK constraints.
+        authSessionRepository.deleteAll();
         authCredentialRepository.deleteAll();
+        authVerificationChallengeRepository.deleteAll();
         authUserRepository.deleteAll();
     }
 
@@ -41,13 +52,23 @@ class AuthLoginServiceIntegrationTest {
         user.activate();
         authUserRepository.save(user);
 
-        authCredentialService.createCredential(user.getUserId(), password);
+        authCredentialService.createCredential(
+                user.getUserId(),
+                password);
 
         AuthUser authenticatedUser = authLoginService.authenticate(email, password);
 
-        assertEquals(user.getUserId(), authenticatedUser.getUserId());
-        assertEquals(email, authenticatedUser.getEmail());
-        assertEquals(AuthUser.Status.ACTIVE, authenticatedUser.getStatus());
+        assertEquals(
+                user.getUserId(),
+                authenticatedUser.getUserId());
+
+        assertEquals(
+                email,
+                authenticatedUser.getEmail());
+
+        assertEquals(
+                AuthUser.Status.ACTIVE,
+                authenticatedUser.getStatus());
     }
 
     @Test
@@ -59,7 +80,9 @@ class AuthLoginServiceIntegrationTest {
         user.activate();
         authUserRepository.save(user);
 
-        authCredentialService.createCredential(user.getUserId(), password);
+        authCredentialService.createCredential(
+                user.getUserId(),
+                password);
 
         assertThrows(
                 AuthenticationFailedException.class,
@@ -85,11 +108,15 @@ class AuthLoginServiceIntegrationTest {
         AuthUser user = AuthUser.create(email);
         authUserRepository.save(user);
 
-        authCredentialService.createCredential(user.getUserId(), password);
+        authCredentialService.createCredential(
+                user.getUserId(),
+                password);
 
         assertThrows(
                 AuthenticationFailedException.class,
-                () -> authLoginService.authenticate(email, password));
+                () -> authLoginService.authenticate(
+                        email,
+                        password));
     }
 
     @Test
@@ -101,12 +128,16 @@ class AuthLoginServiceIntegrationTest {
         user.activate();
         authUserRepository.save(user);
 
-        authCredentialService.createCredential(user.getUserId(), password);
+        authCredentialService.createCredential(
+                user.getUserId(),
+                password);
 
         AuthUser authenticatedUser = authLoginService.authenticate(
                 "  NORMALIZED@EXAMPLE.COM  ",
                 password);
 
-        assertEquals(user.getUserId(), authenticatedUser.getUserId());
+        assertEquals(
+                user.getUserId(),
+                authenticatedUser.getUserId());
     }
 }

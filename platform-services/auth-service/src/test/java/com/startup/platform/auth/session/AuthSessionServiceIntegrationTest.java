@@ -1,16 +1,18 @@
 package com.startup.platform.auth.session;
 
+import com.startup.platform.auth.credential.AuthCredentialRepository;
 import com.startup.platform.auth.identity.AuthUser;
 import com.startup.platform.auth.identity.AuthUserRepository;
+import com.startup.platform.auth.verification.AuthVerificationChallengeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import java.time.Clock;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,11 +27,19 @@ class AuthSessionServiceIntegrationTest {
         private AuthSessionRepository authSessionRepository;
 
         @Autowired
+        private AuthCredentialRepository authCredentialRepository;
+
+        @Autowired
+        private AuthVerificationChallengeRepository authVerificationChallengeRepository;
+
+        @Autowired
         private AuthUserRepository authUserRepository;
 
         @BeforeEach
         void setUp() {
                 authSessionRepository.deleteAll();
+                authCredentialRepository.deleteAll();
+                authVerificationChallengeRepository.deleteAll();
                 authUserRepository.deleteAll();
         }
 
@@ -93,7 +103,8 @@ class AuthSessionServiceIntegrationTest {
                                 clientId,
                                 expiresAt);
 
-                AuthSessionService.RefreshedSession result = authSessionService.refresh(original.refreshToken());
+                AuthSessionService.RefreshedSession result = authSessionService.refresh(
+                                original.refreshToken());
 
                 assertNotNull(result.session());
                 assertNotNull(result.refreshToken());
@@ -146,7 +157,8 @@ class AuthSessionServiceIntegrationTest {
                                 clientId,
                                 expiresAt);
 
-                authSessionService.refresh(original.refreshToken());
+                authSessionService.refresh(
+                                original.refreshToken());
 
                 assertThrows(
                                 RefreshTokenException.class,
@@ -191,7 +203,8 @@ class AuthSessionServiceIntegrationTest {
                                 clientId,
                                 expiresAt);
 
-                authSessionService.refresh(first.refreshToken());
+                authSessionService.refresh(
+                                first.refreshToken());
 
                 assertNull(second.session().getRevokedAt());
 
@@ -218,7 +231,8 @@ class AuthSessionServiceIntegrationTest {
                 AuthSessionService.CreatedSession session = authSessionService.createSession(
                                 user.getUserId(),
                                 clientId,
-                                LocalDateTime.now(Clock.systemUTC()).minusSeconds(1));
+                                LocalDateTime.now(Clock.systemUTC())
+                                                .minusSeconds(1));
 
                 assertThrows(
                                 RefreshTokenException.class,

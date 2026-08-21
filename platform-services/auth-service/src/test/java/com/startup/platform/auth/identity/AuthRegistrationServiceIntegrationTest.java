@@ -5,6 +5,9 @@ import com.startup.platform.auth.credential.AuthCredential;
 import com.startup.platform.auth.credential.AuthCredentialRepository;
 import com.startup.platform.auth.outbox.AuthOutboxEvent;
 import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
+import com.startup.platform.auth.verification.AuthVerificationChallengeRepository;
+import com.startup.platform.auth.session.AuthSessionRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,6 +37,21 @@ class AuthRegistrationServiceIntegrationTest {
 
         @Autowired
         private Argon2PasswordHasher passwordHasher;
+
+        @Autowired
+        private AuthVerificationChallengeRepository authVerificationChallengeRepository;
+
+        @Autowired
+        private AuthSessionRepository authSessionRepository;
+
+        @BeforeEach
+        void setUp() {
+                authSessionRepository.deleteAll();
+                authCredentialRepository.deleteAll();
+                authVerificationChallengeRepository.deleteAll();
+                authOutboxEventRepository.deleteAll();
+                authUserRepository.deleteAll();
+        }
 
         @Test
         void shouldRegisterUserWithCredentialAndOutboxEvent() {

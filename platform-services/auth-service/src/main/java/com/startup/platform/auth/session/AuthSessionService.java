@@ -54,7 +54,7 @@ public class AuthSessionService {
                 return authSessionRepository.findById(sessionId);
         }
 
-        @Transactional
+        @Transactional(noRollbackFor = RefreshTokenException.class)
         public RefreshedSession refresh(String presentedRefreshToken) {
 
                 String refreshTokenHash = refreshTokenService.hash(presentedRefreshToken);

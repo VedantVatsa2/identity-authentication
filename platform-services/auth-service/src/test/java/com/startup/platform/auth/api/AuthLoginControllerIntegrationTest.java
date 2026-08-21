@@ -6,6 +6,7 @@ import com.startup.platform.auth.identity.AuthUser;
 import com.startup.platform.auth.identity.AuthUserRepository;
 import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
 import com.startup.platform.auth.session.AuthSessionRepository;
+import com.startup.platform.auth.verification.AuthVerificationChallengeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,112 +25,116 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class AuthLoginControllerIntegrationTest {
 
-    private static final String EMAIL = "login-api@example.com";
+        private static final String EMAIL = "login-api@example.com";
 
-    private static final String PASSWORD = "CorrectHorseBatteryStaple!123";
+        private static final String PASSWORD = "CorrectHorseBatteryStaple!123";
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @Autowired
-    private AuthRegistrationService authRegistrationService;
+        @Autowired
+        private AuthRegistrationService authRegistrationService;
 
-    @Autowired
-    private AuthUserRepository authUserRepository;
+        @Autowired
+        private AuthUserRepository authUserRepository;
 
-    @Autowired
-    private AuthCredentialRepository authCredentialRepository;
+        @Autowired
+        private AuthCredentialRepository authCredentialRepository;
 
-    @Autowired
-    private AuthOutboxEventRepository authOutboxEventRepository;
+        @Autowired
+        private AuthOutboxEventRepository authOutboxEventRepository;
 
-    @Autowired
-    private AuthSessionRepository authSessionRepository;
+        @Autowired
+        private AuthSessionRepository authSessionRepository;
 
-    @BeforeEach
-    void setUp() {
-        authSessionRepository.deleteAll();
-        authCredentialRepository.deleteAll();
-        authOutboxEventRepository.deleteAll();
-        authUserRepository.deleteAll();
-    }
+        @Autowired
+        private AuthVerificationChallengeRepository authVerificationChallengeRepository;
 
-    @Test
-    void shouldLoginThroughApi() throws Exception {
-        AuthUser user = authRegistrationService.register(
-                EMAIL,
-                PASSWORD);
+        @BeforeEach
+        void setUp() {
+                authSessionRepository.deleteAll();
+                authCredentialRepository.deleteAll();
+                authVerificationChallengeRepository.deleteAll();
+                authOutboxEventRepository.deleteAll();
+                authUserRepository.deleteAll();
+        }
 
-        user.activate();
-        authUserRepository.saveAndFlush(user);
+        @Test
+        void shouldLoginThroughApi() throws Exception {
+                AuthUser user = authRegistrationService.register(
+                                EMAIL,
+                                PASSWORD);
 
-        mockMvc.perform(post("/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "email": "login-api@example.com",
-                          "password": "CorrectHorseBatteryStaple!123"
-                        }
-                        """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").isNotEmpty())
-                .andExpect(jsonPath("$.sessionId").isNotEmpty())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").doesNotExist())
-                .andExpect(header().string(
-                        "Set-Cookie",
-                        org.hamcrest.Matchers.allOf(
-                                org.hamcrest.Matchers.containsString(
-                                        "refresh_token="),
-                                org.hamcrest.Matchers.containsString(
-                                        "HttpOnly"),
-                                org.hamcrest.Matchers.containsString(
-                                        "Secure"),
-                                org.hamcrest.Matchers.containsString(
-                                        "SameSite=Strict"),
-                                org.hamcrest.Matchers.containsString(
-                                        "Path=/v1/auth"))));
+                user.activate();
+                authUserRepository.saveAndFlush(user);
 
-        assertEquals(1, authSessionRepository.count());
-    }
+                mockMvc.perform(post("/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                  "email": "login-api@example.com",
+                                                  "password": "CorrectHorseBatteryStaple!123"
+                                                }
+                                                """))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.userId").isNotEmpty())
+                                .andExpect(jsonPath("$.sessionId").isNotEmpty())
+                                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                                .andExpect(header().string(
+                                                "Set-Cookie",
+                                                org.hamcrest.Matchers.allOf(
+                                                                org.hamcrest.Matchers.containsString(
+                                                                                "refresh_token="),
+                                                                org.hamcrest.Matchers.containsString(
+                                                                                "HttpOnly"),
+                                                                org.hamcrest.Matchers.containsString(
+                                                                                "Secure"),
+                                                                org.hamcrest.Matchers.containsString(
+                                                                                "SameSite=Strict"),
+                                                                org.hamcrest.Matchers.containsString(
+                                                                                "Path=/v1/auth"))));
 
-    @Test
-    void shouldRejectInvalidCredentials() throws Exception {
-        AuthUser user = authRegistrationService.register(
-                EMAIL,
-                PASSWORD);
+                assertEquals(1, authSessionRepository.count());
+        }
 
-        user.activate();
-        authUserRepository.saveAndFlush(user);
+        @Test
+        void shouldRejectInvalidCredentials() throws Exception {
+                AuthUser user = authRegistrationService.register(
+                                EMAIL,
+                                PASSWORD);
 
-        mockMvc.perform(post("/v1/auth/login")
+                user.activate();
+                authUserRepository.saveAndFlush(user);
 
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "email": "login-api@example.com",
-                          "password": "WrongPassword!123"
-                        }
-                        """))
-                .andExpect(status().isUnauthorized());
-    }
+                mockMvc.perform(post("/v1/auth/login")
 
-    @Test
-    void shouldRejectInvalidRequest() throws Exception {
-        mockMvc.perform(post("/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "email": "",
-                          "password": ""
-                        }
-                        """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code")
-                        .value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.status")
-                        .value(400))
-                .andExpect(jsonPath("$.detail")
-                        .isNotEmpty());
-    }
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                  "email": "login-api@example.com",
+                                                  "password": "WrongPassword!123"
+                                                }
+                                                """))
+                                .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        void shouldRejectInvalidRequest() throws Exception {
+                mockMvc.perform(post("/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                  "email": "",
+                                                  "password": ""
+                                                }
+                                                """))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.code")
+                                                .value("INVALID_INPUT"))
+                                .andExpect(jsonPath("$.status")
+                                                .value(400))
+                                .andExpect(jsonPath("$.detail")
+                                                .isNotEmpty());
+        }
 }

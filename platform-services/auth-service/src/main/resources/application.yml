@@ -21,3 +21,8 @@ auth:
   verification:
     hmac-secret: ${AUTH_VERIFICATION_HMAC_SECRET}
   client-id: ${AUTH_CLIENT_ID}
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

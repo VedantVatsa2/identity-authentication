@@ -24,7 +24,8 @@ public class JwtAccessTokenValidator {
             String token,
             PublicKey publicKey,
             String expectedIssuer,
-            String expectedAudience) {
+            String expectedAudience,
+            String expectedKeyId) {
 
         try {
             String[] parts = token.split("\\.", -1);
@@ -45,11 +46,19 @@ public class JwtAccessTokenValidator {
                 throw invalidToken();
             }
 
+            String keyId = requiredString(header, "kid");
+
+            if (!expectedKeyId.equals(keyId)) {
+                throw invalidToken();
+            }
+
             byte[] signatureBytes = Base64.getUrlDecoder()
                     .decode(encodedSignature);
 
             Signature signature = Signature.getInstance("SHA256withRSA");
+
             signature.initVerify(publicKey);
+
             signature.update(
                     (encodedHeader + "." + encodedPayload)
                             .getBytes(StandardCharsets.US_ASCII));
@@ -59,12 +68,17 @@ public class JwtAccessTokenValidator {
             }
 
             String sub = requiredString(payload, "sub");
+
             String sessionId = requiredString(payload, "session_id");
+
             String issuer = requiredString(payload, "iss");
+
             String audience = requiredString(payload, "aud");
+
             String jti = requiredString(payload, "jti");
 
             long issuedAtEpoch = requiredLong(payload, "iat");
+
             long expiresAtEpoch = requiredLong(payload, "exp");
 
             if (!expectedIssuer.equals(issuer)) {
@@ -76,7 +90,9 @@ public class JwtAccessTokenValidator {
             }
 
             Instant issuedAt = Instant.ofEpochSecond(issuedAtEpoch);
+
             Instant expiresAt = Instant.ofEpochSecond(expiresAtEpoch);
+
             Instant now = clock.instant();
 
             if (!expiresAt.isAfter(now)) {
@@ -88,9 +104,11 @@ public class JwtAccessTokenValidator {
             }
 
             UUID userId = UUID.fromString(sub);
+
             UUID parsedSessionId = UUID.fromString(sessionId);
 
             List<String> roles = stringArray(payload, "roles");
+
             List<String> scopes = stringArray(payload, "scopes");
 
             return new JwtClaims(
@@ -152,6 +170,7 @@ public class JwtAccessTokenValidator {
             String claim) {
 
         String marker = "\"" + claim + "\":\"";
+
         int start = payload.indexOf(marker);
 
         if (start < 0) {
@@ -174,6 +193,7 @@ public class JwtAccessTokenValidator {
             String claim) {
 
         String marker = "\"" + claim + "\":";
+
         int start = payload.indexOf(marker);
 
         if (start < 0) {
@@ -185,6 +205,7 @@ public class JwtAccessTokenValidator {
         int end = start;
 
         while (end < payload.length()) {
+
             char character = payload.charAt(end);
 
             if (!Character.isDigit(character)
@@ -207,6 +228,7 @@ public class JwtAccessTokenValidator {
             String claim) {
 
         String marker = "\"" + claim + "\":[";
+
         int start = payload.indexOf(marker);
 
         if (start < 0) {
@@ -229,10 +251,15 @@ public class JwtAccessTokenValidator {
 
         String[] elements = value.split(",");
 
-        return java.util.Arrays.stream(elements)
-                .map(String::trim)
-                .map(this::unquote)
-                .toList();
+        List<String> result = new java.util.ArrayList<>(
+                elements.length);
+
+        for (String element : elements) {
+            result.add(
+                    unquote(element.trim()));
+        }
+
+        return List.copyOf(result);
     }
 
     private String unquote(String value) {
@@ -243,7 +270,9 @@ public class JwtAccessTokenValidator {
             throw invalidToken();
         }
 
-        return value.substring(1, value.length() - 1);
+        return value.substring(
+                1,
+                value.length() - 1);
     }
 
     private JwtValidationException invalidToken() {

@@ -16,173 +16,255 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JwtAccessTokenServiceTest {
 
-    private static final Instant FIXED_TIME = Instant.parse("2026-08-16T17:00:00Z");
+        private static final Instant FIXED_TIME = Instant.parse("2026-08-16T17:00:00Z");
 
-    private final Clock clock = Clock.fixed(FIXED_TIME, ZoneOffset.UTC);
+        private static final String ISSUER = "https://auth.startup.local";
 
-    private final JwtAccessTokenService service = new JwtAccessTokenService(clock);
+        private static final String AUDIENCE = "startup-api";
 
-    @Test
-    void shouldIssueRs256AccessToken() throws Exception {
-        KeyPair keyPair = generateKeyPair();
+        private static final String KEY_ID = "startup-auth-rs256-1";
 
-        UUID userId = UUID.randomUUID();
+        private final Clock clock = Clock.fixed(FIXED_TIME, ZoneOffset.UTC);
 
-        UUID sessionId = UUID.randomUUID();
+        private final JwtAccessTokenService service = new JwtAccessTokenService(clock);
 
-        String token = service.issue(
-                userId,
-                sessionId,
-                "https://auth.startup.local",
-                "startup-api",
-                keyPair.getPrivate());
-        String[] parts = token.split("\\.");
+        @Test
+        void shouldIssueRs256AccessToken() throws Exception {
 
-        assertEquals(3, parts.length);
+                KeyPair keyPair = generateKeyPair();
 
-        String header = decode(parts[0]);
-        String claims = decode(parts[1]);
+                UUID userId = UUID.randomUUID();
+                UUID sessionId = UUID.randomUUID();
 
-        assertTrue(header.contains("\"alg\":\"RS256\""));
-        assertTrue(header.contains("\"typ\":\"JWT\""));
+                String token = service.issue(
+                                userId,
+                                sessionId,
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                KEY_ID);
 
-        assertEquals(
-                userId.toString(),
-                claim(claims, "sub"));
+                String[] parts = token.split("\\.");
 
-        assertEquals(
-                "https://auth.startup.local",
-                claim(claims, "iss"));
+                assertEquals(3, parts.length);
 
-        assertEquals(
-                "startup-api",
-                claim(claims, "aud"));
+                String header = decode(parts[0]);
+                String claims = decode(parts[1]);
 
-        assertEquals(
-                String.valueOf(FIXED_TIME.getEpochSecond()),
-                claim(claims, "iat"));
+                assertTrue(header.contains("\"alg\":\"RS256\""));
+                assertTrue(header.contains("\"typ\":\"JWT\""));
+                assertTrue(header.contains("\"kid\":\"" + KEY_ID + "\""));
 
-        assertEquals(
-                String.valueOf(
-                        FIXED_TIME
-                                .plusSeconds(15 * 60)
-                                .getEpochSecond()),
-                claim(claims, "exp"));
+                assertEquals(
+                                userId.toString(),
+                                claim(claims, "sub"));
 
-        assertNotNull(claim(claims, "jti"));
+                assertEquals(
+                                "https://auth.startup.local",
+                                claim(claims, "iss"));
 
-        assertEquals(
-                sessionId.toString(),
-                claim(claims, "session_id"));
+                assertEquals(
+                                "startup-api",
+                                claim(claims, "aud"));
 
-        assertEquals(
-                "[]",
-                claim(claims, "roles"));
+                assertEquals(
+                                String.valueOf(FIXED_TIME.getEpochSecond()),
+                                claim(claims, "iat"));
 
-        assertEquals(
-                "[]",
-                claim(claims, "scopes"));
-    }
+                assertEquals(
+                                String.valueOf(
+                                                FIXED_TIME
+                                                                .plusSeconds(15 * 60)
+                                                                .getEpochSecond()),
+                                claim(claims, "exp"));
 
-    @Test
-    void shouldProduceVerifiableRs256Signature() throws Exception {
-        KeyPair keyPair = generateKeyPair();
+                assertNotNull(claim(claims, "jti"));
 
-        String token = service.issue(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "https://auth.startup.local",
-                "startup-api",
-                keyPair.getPrivate());
+                assertEquals(
+                                sessionId.toString(),
+                                claim(claims, "session_id"));
 
-        String[] parts = token.split("\\.");
+                assertEquals(
+                                "[]",
+                                claim(claims, "roles"));
 
-        String signingInput = parts[0] + "." + parts[1];
-
-        byte[] signatureBytes = Base64.getUrlDecoder().decode(parts[2]);
-
-        Signature verifier = Signature.getInstance("SHA256withRSA");
-
-        verifier.initVerify(keyPair.getPublic());
-
-        verifier.update(
-                signingInput.getBytes(StandardCharsets.US_ASCII));
-
-        assertTrue(verifier.verify(signatureBytes));
-    }
-
-    @Test
-    void shouldGenerateUniqueJti() throws Exception {
-        KeyPair keyPair = generateKeyPair();
-
-        String first = service.issue(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "https://auth.startup.local",
-                "startup-api",
-                keyPair.getPrivate());
-
-        String second = service.issue(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "https://auth.startup.local",
-                "startup-api",
-                keyPair.getPrivate());
-
-        String firstClaims = decode(first.split("\\.")[1]);
-
-        String secondClaims = decode(second.split("\\.")[1]);
-
-        assertNotEquals(
-                claim(firstClaims, "jti"),
-                claim(secondClaims, "jti"));
-    }
-
-    private static KeyPair generateKeyPair()
-            throws Exception {
-
-        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-
-        generator.initialize(2048);
-
-        return generator.generateKeyPair();
-    }
-
-    private static String decode(String encoded) {
-        return new String(
-                Base64.getUrlDecoder().decode(encoded),
-                StandardCharsets.UTF_8);
-    }
-
-    private static String claim(
-            String payload,
-            String name) {
-
-        String marker = "\"" + name + "\":";
-        int start = payload.indexOf(marker);
-
-        assertTrue(
-                start >= 0,
-                "Missing claim: " + name);
-
-        start += marker.length();
-
-        if (payload.charAt(start) == '"') {
-            int end = payload.indexOf('"', start + 1);
-
-            assertTrue(
-                    end >= 0,
-                    "Unterminated claim: " + name);
-
-            return payload.substring(start + 1, end);
+                assertEquals(
+                                "[]",
+                                claim(claims, "scopes"));
         }
 
-        int end = payload.indexOf(',', start);
+        @Test
+        void shouldProduceVerifiableRs256Signature() throws Exception {
 
-        if (end < 0) {
-            end = payload.length();
+                KeyPair keyPair = generateKeyPair();
+
+                String token = service.issue(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                KEY_ID);
+
+                String[] parts = token.split("\\.");
+
+                String signingInput = parts[0] + "." + parts[1];
+
+                byte[] signatureBytes = Base64.getUrlDecoder()
+                                .decode(parts[2]);
+
+                Signature verifier = Signature.getInstance("SHA256withRSA");
+
+                verifier.initVerify(keyPair.getPublic());
+
+                verifier.update(
+                                signingInput.getBytes(
+                                                StandardCharsets.US_ASCII));
+
+                assertTrue(
+                                verifier.verify(signatureBytes));
         }
 
-        return payload.substring(start, end);
-    }
+        @Test
+        void shouldGenerateUniqueJti() throws Exception {
+
+                KeyPair keyPair = generateKeyPair();
+
+                String first = service.issue(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                KEY_ID);
+
+                String second = service.issue(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                KEY_ID);
+
+                String firstClaims = decode(first.split("\\.")[1]);
+
+                String secondClaims = decode(second.split("\\.")[1]);
+
+                assertNotEquals(
+                                claim(firstClaims, "jti"),
+                                claim(secondClaims, "jti"));
+        }
+
+        @Test
+        void shouldIncludeConfiguredKeyId() throws Exception {
+
+                KeyPair keyPair = generateKeyPair();
+
+                String token = service.issue(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                KEY_ID);
+
+                String header = decode(token.split("\\.")[0]);
+
+                assertEquals(
+                                KEY_ID,
+                                claim(header, "kid"));
+        }
+
+        @Test
+        void shouldUseDifferentKeyIdsWhenConfigured() throws Exception {
+
+                KeyPair keyPair = generateKeyPair();
+
+                String first = service.issue(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                "key-one");
+
+                String second = service.issue(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                ISSUER,
+                                AUDIENCE,
+                                keyPair.getPrivate(),
+                                "key-two");
+
+                assertEquals(
+                                "key-one",
+                                claim(
+                                                decode(first.split("\\.")[0]),
+                                                "kid"));
+
+                assertEquals(
+                                "key-two",
+                                claim(
+                                                decode(second.split("\\.")[0]),
+                                                "kid"));
+        }
+
+        private static KeyPair generateKeyPair()
+                        throws Exception {
+
+                KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+
+                generator.initialize(2048);
+
+                return generator.generateKeyPair();
+        }
+
+        private static String decode(String encoded) {
+
+                return new String(
+                                Base64.getUrlDecoder().decode(encoded),
+                                StandardCharsets.UTF_8);
+        }
+
+        private static String claim(
+                        String payload,
+                        String name) {
+
+                String marker = "\"" + name + "\":";
+
+                int start = payload.indexOf(marker);
+
+                assertTrue(
+                                start >= 0,
+                                "Missing claim: " + name);
+
+                start += marker.length();
+
+                if (payload.charAt(start) == '"') {
+
+                        int end = payload.indexOf(
+                                        '"',
+                                        start + 1);
+
+                        assertTrue(
+                                        end >= 0,
+                                        "Unterminated claim: " + name);
+
+                        return payload.substring(
+                                        start + 1,
+                                        end);
+                }
+
+                int end = payload.indexOf(
+                                ',',
+                                start);
+
+                if (end < 0) {
+                        end = payload.length();
+                }
+
+                return payload.substring(
+                                start,
+                                end);
+        }
 }

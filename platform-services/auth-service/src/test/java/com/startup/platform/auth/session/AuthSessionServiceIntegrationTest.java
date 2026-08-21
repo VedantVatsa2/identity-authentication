@@ -35,6 +35,38 @@ class AuthSessionServiceIntegrationTest {
         @Autowired
         private AuthUserRepository authUserRepository;
 
+        @Autowired
+        private RefreshTokenService refreshTokenService;
+
+        @Test
+        void shouldFindSessionByRefreshTokenHash() {
+                AuthUser user = AuthUser.create("refresh-lookup@example.com");
+                authUserRepository.save(user);
+
+                UUID clientId = UUID.randomUUID();
+                LocalDateTime expiresAt = LocalDateTime.now().plusDays(30);
+
+                AuthSessionService.CreatedSession created = authSessionService.createSession(
+                                user.getUserId(),
+                                clientId,
+                                expiresAt);
+
+                String hash = refreshTokenService.hash(
+                                created.refreshToken());
+
+                AuthSession found = authSessionRepository
+                                .findByRefreshTokenHashForUpdate(hash)
+                                .orElseThrow();
+
+                assertEquals(
+                                created.session().getSessionId(),
+                                found.getSessionId());
+
+                assertEquals(
+                                created.session().getRefreshTokenHash(),
+                                hash);
+        }
+
         @BeforeEach
         void setUp() {
                 authSessionRepository.deleteAll();
@@ -239,4 +271,5 @@ class AuthSessionServiceIntegrationTest {
                                 () -> authSessionService.refresh(
                                                 session.refreshToken()));
         }
+
 }

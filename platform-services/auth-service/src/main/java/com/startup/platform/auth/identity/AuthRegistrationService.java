@@ -7,6 +7,7 @@ import com.startup.platform.auth.outbox.AuthOutboxEventRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.startup.platform.auth.verification.AuthVerificationService;
 
 import java.util.UUID;
 
@@ -17,16 +18,20 @@ public class AuthRegistrationService {
     private final AuthCredentialService authCredentialService;
     private final AuthOutboxEventRepository authOutboxEventRepository;
     private final PasswordValidator passwordValidator;
+    private final AuthVerificationService authVerificationService;
 
     public AuthRegistrationService(
             AuthUserRepository authUserRepository,
             AuthCredentialService authCredentialService,
             AuthOutboxEventRepository authOutboxEventRepository,
-            PasswordValidator passwordValidator) {
+            PasswordValidator passwordValidator,
+            AuthVerificationService authVerificationService) {
+
         this.authUserRepository = authUserRepository;
         this.authCredentialService = authCredentialService;
         this.authOutboxEventRepository = authOutboxEventRepository;
         this.passwordValidator = passwordValidator;
+        this.authVerificationService = authVerificationService;
     }
 
     @Transactional
@@ -52,10 +57,13 @@ public class AuthRegistrationService {
                 user.getUserId(),
                 rawPassword);
 
+        AuthVerificationService.GeneratedVerificationChallenge challenge = authVerificationService
+                .createEmailVerificationChallenge(user);
+
         AuthOutboxEvent event = new AuthOutboxEvent(
                 UUID.randomUUID(),
                 "AUTH_USER",
-                createRegistrationPayload(user),
+                createRegistrationPayload(user, challenge),
                 AuthOutboxEvent.Status.PENDING,
                 0);
 
@@ -64,15 +72,22 @@ public class AuthRegistrationService {
         return user;
     }
 
-    private String createRegistrationPayload(AuthUser user) {
+    private String createRegistrationPayload(
+            AuthUser user,
+            AuthVerificationService.GeneratedVerificationChallenge challenge) {
+
         return """
                 {
                   "type": "USER_REGISTERED",
                   "user_id": "%s",
-                  "email": "%s"
+                  "email": "%s",
+                  "verification_challenge_id": "%s",
+                  "verification_otp": "%s"
                 }
                 """.formatted(
                 user.getUserId(),
-                user.getEmail());
+                user.getEmail(),
+                challenge.challengeId(),
+                challenge.otp());
     }
 }

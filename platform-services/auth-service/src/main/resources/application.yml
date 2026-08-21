@@ -18,4 +18,6 @@ spring:
 auth:
   jwt:
     private-key: ${AUTH_JWT_PRIVATE_KEY}
+  verification:
+    hmac-secret: ${AUTH_VERIFICATION_HMAC_SECRET}
   client-id: ${AUTH_CLIENT_ID}

@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.startup.platform.auth.session.RefreshTokenException;
+import com.startup.platform.auth.verification.VerificationChallengeException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -72,6 +73,16 @@ public class ApiExceptionHandler {
                                 "Refresh Token Invalid",
                                 "Invalid refresh token.",
                                 "INVALID_REFRESH_TOKEN");
+        }
+
+        @ExceptionHandler(VerificationChallengeException.class)
+        public ProblemDetail handleVerificationChallengeFailed() {
+
+                return problem(
+                                HttpStatus.BAD_REQUEST,
+                                "Verification Failed",
+                                "Invalid or expired verification code.",
+                                "VERIFICATION_FAILED");
         }
 
         private ProblemDetail problem(
